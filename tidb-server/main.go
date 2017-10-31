@@ -32,6 +32,7 @@ import (
 	"github.com/pingcap/tidb/ddl"
 	"github.com/pingcap/tidb/domain"
 	"github.com/pingcap/tidb/kv"
+	"github.com/pingcap/tidb/layer"
 	"github.com/pingcap/tidb/plan"
 	"github.com/pingcap/tidb/privilege/privileges"
 	"github.com/pingcap/tidb/server"
@@ -136,9 +137,15 @@ func main() {
 	createServer()
 	setupSignalHandler()
 	setupMetrics()
+	runLayerServer()
 	runServer()
 	cleanup()
 	os.Exit(0)
+}
+
+func runLayerServer() {
+	server := layer.NewLayer()
+	server.Run()
 }
 
 func registerStores() {
