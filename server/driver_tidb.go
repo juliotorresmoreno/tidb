@@ -56,6 +56,14 @@ type TiDBStatement struct {
 	ctx         *TiDBContext
 }
 
+func NewTiDBContext(session tidb.Session, dbname string) *TiDBContext {
+	return &TiDBContext{
+		session:   session,
+		currentDB: dbname,
+		stmts:     make(map[int]*TiDBStatement),
+	}
+}
+
 // ID implements PreparedStatement ID method.
 func (ts *TiDBStatement) ID() int {
 	return int(ts.id)

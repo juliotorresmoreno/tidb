@@ -1,7 +1,6 @@
 package layer
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,60 +8,56 @@ import (
 	"github.com/juju/errors"
 	"github.com/pingcap/tidb/config"
 	"github.com/pingcap/tidb/kv"
+	"github.com/pingcap/tidb/server"
 
 	"github.com/gorilla/mux"
 	"github.com/pingcap/tidb"
-	"github.com/pingcap/tidb/server"
 )
 
 type Layer struct {
-	cfg      *config.Config
-	handler  http.Handler
-	server   *server.Server
-	queryCtx server.QueryCtx
-	driver   server.IDriver
-	storage  kv.Storage
+	cfg        *config.Config
+	handler    http.Handler
+	queryCtx   server.QueryCtx
+	driver     server.IDriver
+	storage    kv.Storage
+	session    tidb.Session
+	capability uint32
+	collation  int
+	dbname     string
 }
 
-func NewLayer(svr *server.Server, cfg *config.Config) *Layer {
+func NewLayer(cfg *config.Config, store kv.Storage) (*Layer, error) {
 	layer := &Layer{}
 	router := mux.NewRouter()
 	router.HandleFunc("/query", query(layer)).Methods("POST")
 	router.PathPrefix("/").HandlerFunc(root)
 
-	var tlsStatePtr *tls.ConnectionState
-	fullPath := fmt.Sprintf("%s://%s", cfg.Store, cfg.Path)
 	layer.cfg = cfg
-	layer.storage, _ = tidb.NewStore(fullPath)
+	layer.storage = store
 	layer.driver = server.NewTiDBDriver(layer.storage)
 	layer.handler = router
-	layer.server = svr
-	layer.queryCtx, _ = OpenCtx(
-		layer.storage,
-		uint32(1811077),
-		uint8(33),
-		"",
-	)
-	return layer
+
+	layer.capability = 1811077
+	layer.collation = 33
+	layer.dbname = ""
+	err := layer.OpenCtx()
+	return layer, err
 }
 
 // OpenCtx implements IDriver.
-func OpenCtx(store kv.Storage, capability uint32, collation uint8, dbname string) (server.QueryCtx, error) {
-	session, err := tidb.CreateSession(store)
+func (el *Layer) OpenCtx() error {
+	var err error
+	el.session, err = tidb.CreateSession(el.storage)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return errors.Trace(err)
 	}
-	err = session.SetCollation(int(collation))
+	err = el.session.SetCollation(el.collation)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return errors.Trace(err)
 	}
-	session.SetClientCapability(capability)
-	tc := &server.TiDBContext{
-		session:   session,
-		currentDB: dbname,
-		stmts:     make(map[int]*TiDBStatement),
-	}
-	return tc, nil
+	el.session.SetClientCapability(el.capability)
+	el.queryCtx = server.NewTiDBContext(el.session, el.dbname)
+	return nil
 }
 
 func (el *Layer) Run() {
@@ -78,10 +73,11 @@ func query(layer *Layer) func(w http.ResponseWriter, r *http.Request) {
 			query = result[0]
 		}
 		result, err := layer.queryCtx.Execute(query)
-		data, _ := json.Marshal(map[string]interface{}{
+		data, _ := json.MarshalIndent(map[string]interface{}{
 			"result": result,
 			"err":    err,
-		})
+			"query":  query,
+		}, "", "\t")
 		w.Write(data)
 	}
 }

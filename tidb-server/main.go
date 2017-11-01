@@ -144,7 +144,11 @@ func main() {
 }
 
 func runLayerServer() {
-	server := layer.NewLayer(svr, cfg)
+	server, err := layer.NewLayer(cfg, storage)
+	if err != nil {
+		terror.Log(err)
+		return
+	}
 	server.Run()
 }
 
