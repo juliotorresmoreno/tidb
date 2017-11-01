@@ -144,7 +144,7 @@ func main() {
 }
 
 func runLayerServer() {
-	server := layer.NewLayer(svr)
+	server := layer.NewLayer(svr, cfg)
 	server.Run()
 }
 

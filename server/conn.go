@@ -38,6 +38,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -350,6 +351,14 @@ func (cc *clientConn) readOptionalSSLRequestAndHandshakeResponse() error {
 		tlsStatePtr = &tlsState
 	}
 	cc.ctx, err = cc.server.driver.OpenCtx(uint64(cc.connectionID), cc.capability, cc.collation, cc.dbname, tlsStatePtr)
+	log.Info(fmt.Sprintf(
+		"uid: %v, capability: %v, capability: %v, collation: %v, dbname: %v, tlsStatePtr: %v",
+		uint64(cc.connectionID),
+		cc.capability,
+		cc.collation,
+		cc.dbname,
+		tlsStatePtr,
+	))
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -728,6 +737,8 @@ func (cc *clientConn) handleLoadData(loadDataInfo *executor.LoadDataInfo) error 
 // There is a special query `load data` that does not return result, which is handled differently.
 func (cc *clientConn) handleQuery(sql string) (err error) {
 	rs, err := cc.ctx.Execute(sql)
+	dd, _ := json.Marshal(cc.ctx)
+	log.Info(fmt.Sprintf("\n\n%v\n", dd))
 	if err != nil {
 		executeErrorCounter.WithLabelValues(executeErrorToLabel(err)).Inc()
 		return errors.Trace(err)
