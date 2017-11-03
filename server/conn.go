@@ -101,7 +101,7 @@ func (cc *clientConn) handshake() error {
 	data = append(data, mysql.OKHeader)
 	data = append(data, 0, 0)
 	if cc.capability&mysql.ClientProtocol41 > 0 {
-		data = append(data, dumpUint16(mysql.ServerStatusAutocommit)...)
+		data = dumpUint16(data, mysql.ServerStatusAutocommit)
 		data = append(data, 0, 0)
 	}
 
@@ -152,7 +152,7 @@ func (cc *clientConn) writeInitialHandshake() error {
 	}
 	data = append(data, cc.collation)
 	// status
-	data = append(data, dumpUint16(mysql.ServerStatusAutocommit)...)
+	data = dumpUint16(data, mysql.ServerStatusAutocommit)
 	// below 13 byte may not be used
 	// capability flag upper 2 bytes, using default capability here
 	data = append(data, byte(cc.server.capability>>16), byte(cc.server.capability>>24))
@@ -570,11 +570,11 @@ func (cc *clientConn) flush() error {
 func (cc *clientConn) writeOK() error {
 	data := cc.alloc.AllocWithLen(4, 32)
 	data = append(data, mysql.OKHeader)
-	data = append(data, dumpLengthEncodedInt(cc.ctx.AffectedRows())...)
-	data = append(data, dumpLengthEncodedInt(cc.ctx.LastInsertID())...)
+	data = dumpLengthEncodedInt(data, cc.ctx.AffectedRows())
+	data = dumpLengthEncodedInt(data, cc.ctx.LastInsertID())
 	if cc.capability&mysql.ClientProtocol41 > 0 {
-		data = append(data, dumpUint16(cc.ctx.Status())...)
-		data = append(data, dumpUint16(cc.ctx.WarningCount())...)
+		data = dumpUint16(data, cc.ctx.Status())
+		data = dumpUint16(data, cc.ctx.WarningCount())
 	}
 
 	err := cc.writePacket(data)
@@ -625,12 +625,12 @@ func (cc *clientConn) writeEOF(more bool) error {
 
 	data = append(data, mysql.EOFHeader)
 	if cc.capability&mysql.ClientProtocol41 > 0 {
-		data = append(data, dumpUint16(cc.ctx.WarningCount())...)
+		data = dumpUint16(data, cc.ctx.WarningCount())
 		status := cc.ctx.Status()
 		if more {
 			status |= mysql.ServerMoreResultsExists
 		}
-		data = append(data, dumpUint16(status)...)
+		data = dumpUint16(data, status)
 	}
 
 	err := cc.writePacket(data)
@@ -773,7 +773,7 @@ func (cc *clientConn) handleFieldList(sql string) (err error) {
 	data := make([]byte, 4, 1024)
 	for _, v := range columns {
 		data = data[0:4]
-		data = append(data, v.Dump(cc.alloc)...)
+		data = v.Dump(data)
 		if err := cc.writePacket(data); err != nil {
 			return errors.Trace(err)
 		}
@@ -802,16 +802,15 @@ func (cc *clientConn) writeResultset(rs ResultSet, binary bool, more bool) error
 		return errors.Trace(err)
 	}
 
-	columnLen := dumpLengthEncodedInt(uint64(len(columns)))
 	data := cc.alloc.AllocWithLen(4, 1024)
-	data = append(data, columnLen...)
+	data = dumpLengthEncodedInt(data, uint64(len(columns)))
 	if err = cc.writePacket(data); err != nil {
 		return errors.Trace(err)
 	}
 
 	for _, v := range columns {
 		data = data[0:4]
-		data = append(data, v.Dump(cc.alloc)...)
+		data = v.Dump(data)
 		if err = cc.writePacket(data); err != nil {
 			return errors.Trace(err)
 		}
@@ -821,6 +820,8 @@ func (cc *clientConn) writeResultset(rs ResultSet, binary bool, more bool) error
 		return errors.Trace(err)
 	}
 
+	numBytes4Null := ((len(columns) + 7 + 2) / 8)
+	rowBuffer := make([]byte, 1+numBytes4Null, 1+numBytes4Null+8*(len(columns)))
 	for {
 		if err != nil {
 			return errors.Trace(err)
@@ -830,12 +831,12 @@ func (cc *clientConn) writeResultset(rs ResultSet, binary bool, more bool) error
 		}
 		data = data[0:4]
 		if binary {
-			var rowData []byte
-			rowData, err = dumpRowValuesBinary(cc.alloc, columns, row)
+			rowBuffer = rowBuffer[0 : 1+numBytes4Null : cap(rowBuffer)]
+			rowBuffer, err = dumpRowValuesBinary(rowBuffer, columns, row)
 			if err != nil {
 				return errors.Trace(err)
 			}
-			data = append(data, rowData...)
+			data = append(data, rowBuffer...)
 		} else {
 			for i, value := range row {
 				if value.IsNull() {
@@ -847,7 +848,7 @@ func (cc *clientConn) writeResultset(rs ResultSet, binary bool, more bool) error
 				if err != nil {
 					return errors.Trace(err)
 				}
-				data = append(data, dumpLengthEncodedString(valData, cc.alloc)...)
+				data = dumpLengthEncodedString(data, valData)
 			}
 		}
 
