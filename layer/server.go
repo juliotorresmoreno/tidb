@@ -6,9 +6,11 @@ import (
 	"net/http"
 
 	"github.com/juju/errors"
+	"github.com/pingcap/tidb/ast"
 	"github.com/pingcap/tidb/config"
 	"github.com/pingcap/tidb/kv"
 	"github.com/pingcap/tidb/server"
+	"github.com/rs/zerolog/log"
 
 	"github.com/gorilla/mux"
 	"github.com/pingcap/tidb"
@@ -72,13 +74,38 @@ func query(layer *Layer) func(w http.ResponseWriter, r *http.Request) {
 		if result := getPostParams(r)["query"]; len(result) > 0 {
 			query = result[0]
 		}
-		result, err := layer.queryCtx.Execute(query)
-		data, _ := json.MarshalIndent(map[string]interface{}{
-			"result": result,
-			"err":    err,
+		result, err := layer.session.Execute(query)
+		if err == nil {
+			err = fmt.Errorf("")
+		}
+		//data := make([][]interface{}, 0)
+		for _, col := range result {
+			//tmp := make([]interface{}, 0)
+			fmt.Println(col.Fields())
+			row, _ := col.Next()
+			for _, element := range row.Data {
+				log.Print(element.GetValue())
+				fmt.Println(element)
+			}
+			/*for _, col := range row {
+				tmp = append(tmp, col.GetInterface())
+			}
+			data = append(data, tmp)*/
+		}
+		var row []*ast.ResultField
+		//var rowType string
+		if len(result) > 0 {
+			row, _ = result[len(result)-1].Fields()
+			//rowType = fmt.Sprintf("%T", )
+		}
+
+		response, _ := json.MarshalIndent(map[string]interface{}{
+			"type":   fmt.Sprintf("%T", result),
+			"result": row,
+			"err":    err.Error(),
 			"query":  query,
 		}, "", "\t")
-		w.Write(data)
+		w.Write(response)
 	}
 }
 
