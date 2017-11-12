@@ -2,21 +2,61 @@ package layer
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/pingcap/tidb/ast"
 	goctx "golang.org/x/net/context"
 )
 
-func execute(layer *Layer, sql string) ([]map[string]interface{}, error) {
-	data := make([]map[string]interface{}, 0)
+func (layer *Layer) Execute(sql string) ([]map[string]interface{}, error) {
 	result, err := layer.session.Execute(goctx.Background(), sql)
 	if err != nil {
-		return data, err
+		return make([]map[string]interface{}, 0), err
 	}
+	data := proccesRecordSet(result)
+	return data, nil
+}
 
+func (layer *Layer) ExecuteStmt(sql string, param ...interface{}) ([]map[string]interface{}, error) {
+	sql = parseStmt(sql, param...)
+	log.Info(sql)
+	result, err := layer.session.Execute(goctx.Background(), sql)
+	if err != nil {
+		return make([]map[string]interface{}, 0), err
+	}
+	data := proccesRecordSet(result)
+	return data, nil
+}
+
+func parseStmt(sql string, param ...interface{}) string {
+	for _, val := range param {
+		switch val.(type) {
+		case int:
+			sql = strings.Replace(sql, "?", fmt.Sprintf(`%v`, val), 1)
+		case int32:
+			sql = strings.Replace(sql, "?", fmt.Sprintf(`%v`, val), 1)
+		case int64:
+			sql = strings.Replace(sql, "?", fmt.Sprintf(`%v`, val), 1)
+		case float32:
+			sql = strings.Replace(sql, "?", fmt.Sprintf(`%v`, val), 1)
+		case float64:
+			sql = strings.Replace(sql, "?", fmt.Sprintf(`%v`, val), 1)
+		case []byte:
+			sql = strings.Replace(sql, "?", fmt.Sprintf(`"%v"`, string(val.([]byte))), 1)
+		default:
+			sql = strings.Replace(sql, "?", fmt.Sprintf(`"%v"`, val), 1)
+		}
+	}
+	return sql
+}
+
+func proccesRecordSet(result []ast.RecordSet) []map[string]interface{} {
+	data := make([]map[string]interface{}, 0)
 	if len(result) > 0 {
 		fields := make([]string, 0)
 		_fields, _ := result[0].Fields()
@@ -41,7 +81,7 @@ func execute(layer *Layer, sql string) ([]map[string]interface{}, error) {
 		}
 		rows.Close()
 	}
-	return data, nil
+	return data
 }
 
 //getPostParams Get the parameters sent by the post method in an http request
@@ -53,8 +93,12 @@ func getPostParams(r *http.Request) url.Values {
 		decoder := json.NewDecoder(r.Body)
 		decoder.Decode(&params)
 		for k, v := range params {
-			if reflect.ValueOf(v).Kind().String() == "string" {
+			fmt.Println(reflect.ValueOf(v).Kind().String())
+			switch v.(type) {
+			case string:
 				result.Set(k, v.(string))
+			default:
+				result.Set(k, fmt.Sprintf("%v", v))
 			}
 		}
 		return result
