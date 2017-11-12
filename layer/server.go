@@ -30,7 +30,9 @@ func NewLayer(cfg *config.Config, store kv.Storage) (*Layer, error) {
 	router.HandleFunc("/query", layer.handlerSQL).Methods("POST")
 	router.HandleFunc("/{database}/{table}", layer.handlerSelect).Methods("GET")
 	router.HandleFunc("/{database}/{table}", layer.handlerInsert).Methods("PUT")
-	router.PathPrefix("/").HandlerFunc(root)
+	router.HandleFunc("/{database}/{table}/{id}", layer.handlerUpdate).Methods("PATCH")
+	router.HandleFunc("/{database}/{table}/{id}", layer.handlerDelete).Methods("DELETE")
+	router.PathPrefix("/").HandlerFunc(root).Methods("GET")
 
 	layer.cfg = cfg
 	layer.storage = store

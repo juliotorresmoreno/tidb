@@ -26,11 +26,24 @@ Content-Type: application/json
 {"id": 13,"name": "producto"}
 
 ###
+PATCH  http://localhost:5000/test/test/13
+Content-Type: application/json
+
+{"name": "funciona"}
+
+###
+DELETE   http://localhost:5000/test/test/13
+
+###
 
 POST http://localhost:5000/query
 Content-Type: application/json
 
 {"query": "select * from test.test"}
+
+###
+
+GET  http://localhost:5000/test/test
 
 
 ###

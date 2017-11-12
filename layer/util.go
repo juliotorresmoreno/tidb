@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/pingcap/tidb/ast"
 	goctx "golang.org/x/net/context"
 )
@@ -24,7 +23,6 @@ func (layer *Layer) Execute(sql string) ([]map[string]interface{}, error) {
 
 func (layer *Layer) ExecuteStmt(sql string, param ...interface{}) ([]map[string]interface{}, error) {
 	sql = parseStmt(sql, param...)
-	log.Info(sql)
 	result, err := layer.session.Execute(goctx.Background(), sql)
 	if err != nil {
 		return make([]map[string]interface{}, 0), err
@@ -59,7 +57,7 @@ func proccesRecordSet(result []ast.RecordSet) []map[string]interface{} {
 	data := make([]map[string]interface{}, 0)
 	if len(result) > 0 {
 		fields := make([]string, 0)
-		_fields, _ := result[0].Fields()
+		_fields := result[0].Fields()
 		for _, _field := range _fields {
 			fields = append(fields, _field.ColumnAsName.L)
 		}

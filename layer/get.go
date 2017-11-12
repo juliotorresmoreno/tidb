@@ -40,6 +40,41 @@ func (el *Layer) handlerInsert(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (el *Layer) handlerUpdate(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	database := vars["database"]
+	table := vars["table"]
+	id, _ := vars["id"]
+	params := builder.Eq{}
+	data := getPostParams(r)
+	for key := range data {
+		params[key] = data.Get(key)
+	}
+	err := el.Update(database, table, id, params)
+	if err != nil {
+		herror(w, err.Error())
+		return
+	}
+	json.NewEncoder(w).Encode(Row{
+		"success": true,
+	})
+}
+
+func (el *Layer) handlerDelete(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	database := vars["database"]
+	table := vars["table"]
+	id := vars["id"]
+	err := el.Delete(database, table, id)
+	if err != nil {
+		herror(w, err.Error())
+		return
+	}
+	json.NewEncoder(w).Encode(Row{
+		"success": true,
+	})
+}
+
 func hsuccess(w http.ResponseWriter, data []map[string]interface{}) {
 	json.NewEncoder(w).Encode(Row{
 		"success": true,
