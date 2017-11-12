@@ -74,6 +74,11 @@ func (el *Layer) handlerDelete(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 	})
 }
+func (el *Layer) handlerSubscribe(w http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(w).Encode(Row{
+		"success": true,
+	})
+}
 
 func hsuccess(w http.ResponseWriter, data []map[string]interface{}) {
 	json.NewEncoder(w).Encode(Row{

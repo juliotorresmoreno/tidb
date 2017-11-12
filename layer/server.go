@@ -22,16 +22,24 @@ type Layer struct {
 	capability uint32
 	collation  int
 	dbname     string
+	hub        *Hub
 }
 
 func NewLayer(cfg *config.Config, store kv.Storage) (*Layer, error) {
 	layer := &Layer{}
+	layer.hub = &Hub{clients: make(map[string]*user)}
 	router := mux.NewRouter()
 	router.HandleFunc("/query", layer.handlerSQL).Methods("POST")
 	router.HandleFunc("/{database}/{table}", layer.handlerSelect).Methods("GET")
 	router.HandleFunc("/{database}/{table}", layer.handlerInsert).Methods("PUT")
 	router.HandleFunc("/{database}/{table}/{id}", layer.handlerUpdate).Methods("PATCH")
 	router.HandleFunc("/{database}/{table}/{id}", layer.handlerDelete).Methods("DELETE")
+	router.HandleFunc("/{database}/{table}/subscribe", layer.handlerSubscribe).Methods("GET")
+	// websocket
+	router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		layer.hub.ServeWs(w, r, "session")
+	}).Methods("GET")
+
 	router.PathPrefix("/").HandlerFunc(root).Methods("GET")
 
 	layer.cfg = cfg
