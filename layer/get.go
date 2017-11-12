@@ -8,21 +8,48 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func (el *Layer) get(w http.ResponseWriter, r *http.Request) {
+type Row map[string]interface{}
+
+func (el *Layer) handlerSelect(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	table := vars["table"]
-	sql, _, _ := builder.Select("*").From(table).ToSQL()
-	data, err := execute(el, sql)
+	database, table := vars["database"], vars["table"]
+	data, err := el.Select(database, table)
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"message": err.Error(),
-		})
+		herror(w, err.Error())
 		return
 	}
-	response, _ := json.MarshalIndent(map[string]interface{}{
+	hsuccess(w, data)
+}
+
+func (el *Layer) handlerInsert(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	database := vars["database"]
+	table := vars["table"]
+	params := builder.Eq{}
+	data := getPostParams(r)
+	for key := range data {
+		params[key] = data.Get(key)
+	}
+	err := el.Insert(database, table, params)
+	if err != nil {
+		herror(w, err.Error())
+		return
+	}
+	json.NewEncoder(w).Encode(Row{
+		"success": true,
+	})
+}
+
+func hsuccess(w http.ResponseWriter, data []map[string]interface{}) {
+	json.NewEncoder(w).Encode(Row{
 		"success": true,
 		"data":    data,
-	}, "", "\t")
-	w.Write(response)
+	})
+}
+
+func herror(w http.ResponseWriter, message string) {
+	json.NewEncoder(w).Encode(Row{
+		"success": false,
+		"message": message,
+	})
 }

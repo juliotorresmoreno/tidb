@@ -27,8 +27,9 @@ type Layer struct {
 func NewLayer(cfg *config.Config, store kv.Storage) (*Layer, error) {
 	layer := &Layer{}
 	router := mux.NewRouter()
-	router.HandleFunc("/query", layer.sql).Methods("POST")
-	router.HandleFunc("/{table}", layer.get).Methods("GET")
+	router.HandleFunc("/query", layer.handlerSQL).Methods("POST")
+	router.HandleFunc("/{database}/{table}", layer.handlerSelect).Methods("GET")
+	router.HandleFunc("/{database}/{table}", layer.handlerInsert).Methods("PUT")
 	router.PathPrefix("/").HandlerFunc(root)
 
 	layer.cfg = cfg

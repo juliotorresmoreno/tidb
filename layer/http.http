@@ -18,6 +18,13 @@ Content-Type: application/json
 
 {"query": "insert into test.test values (3, \"monda\")"}
 
+
+###
+PUT http://localhost:5000/test/test
+Content-Type: application/json
+
+{"id": 13,"name": "producto"}
+
 ###
 
 POST http://localhost:5000/query
@@ -32,3 +39,11 @@ POST http://localhost:5000/query
 Content-Type: application/json
 
 {"query": "drop database test;"}
+
+
+###
+
+POST http://localhost:5000/query
+Content-Type: application/json
+
+{"query": "desc test.test;"}
