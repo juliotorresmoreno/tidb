@@ -1,0 +1,34 @@
+
+
+POST http://localhost:5000/query
+Content-Type: application/json
+
+{"query": "create database test;"}
+
+###
+
+POST http://localhost:5000/query
+Content-Type: application/json
+
+{"query": "create table test.test(id int, name varchar(100))"}
+
+###
+POST http://localhost:5000/query
+Content-Type: application/json
+
+{"query": "insert into test.test values (3, \"monda\")"}
+
+###
+
+POST http://localhost:5000/query
+Content-Type: application/json
+
+{"query": "select * from test.test"}
+
+
+###
+
+POST http://localhost:5000/query
+Content-Type: application/json
+
+{"query": "drop database test;"}
