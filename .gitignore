@@ -4,6 +4,7 @@ bin
 /parser/parser.go
 /tidb-server/tidb-server
 /tidb-server/debug
+/tidb-server/tidb-server/config/config.toml
 coverage.out
 .idea/
 *.iml
