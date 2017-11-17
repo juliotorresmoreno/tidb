@@ -829,7 +829,7 @@ func (s *testSessionSuite) TestResultType(c *C) {
 	c.Assert(err, IsNil)
 	row, err := rs.Next()
 	c.Assert(err, IsNil)
-	c.Assert(row.Data[0].GetValue(), IsNil)
+	c.Assert(row.IsNull(0), IsTrue)
 	c.Assert(rs.Fields()[0].Column.FieldType.Tp, Equals, mysql.TypeVarString)
 }
 
@@ -1023,6 +1023,15 @@ func (s *testSessionSuite) TestMultiStmts(c *C) {
 	tk := testkit.NewTestKitWithInit(c, s.store)
 	tk.MustExec("drop table if exists t1; create table t1(id int ); insert into t1 values (1);")
 	tk.MustQuery("select * from t1;").Check(testkit.Rows("1"))
+}
+
+func (s *testSessionSuite) TestLastExecuteDDLFlag(c *C) {
+	tk := testkit.NewTestKitWithInit(c, s.store)
+	tk.MustExec("drop table if exists t1")
+	tk.MustExec("create table t1(id int)")
+	c.Assert(tk.Se.Value(context.LastExecuteDDL), NotNil)
+	tk.MustExec("insert into t1 values (1)")
+	c.Assert(tk.Se.Value(context.LastExecuteDDL), IsNil)
 }
 
 func (s *testSessionSuite) TestDecimal(c *C) {
