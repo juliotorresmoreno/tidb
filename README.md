@@ -36,7 +36,7 @@ Power TiDB with your most favorite engines. TiDB supports local storage engines 
 
 For more details, see [How we build TiDB](https://pingcap.github.io/blog/2016/10/17/how-we-build-tidb/).
 
-- Sobre lo que estoy agregando__
+### Sobre lo que estoy agregando
 El objetivo de este fork es agregar soporte para ejecuciones SQL a traves de http, subscripciones por medio de websockets y analisis de datos usando torch, pytorch y posiblemente R u octave.
 
 ## Roadmap
