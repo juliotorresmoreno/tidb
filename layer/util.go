@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 
 	"github.com/pingcap/tidb/ast"
+	"github.com/pingcap/tidb/types"
 	goctx "golang.org/x/net/context"
 )
 
@@ -65,13 +65,14 @@ func proccesRecordSet(result []ast.RecordSet) []map[string]interface{} {
 		_row, _ := rows.Next()
 		for _row != nil {
 			row := map[string]interface{}{}
-			for index, element := range _row.Data {
-				value := element.GetValue()
-				switch value.(type) {
-				case []byte:
-					row[fields[index]] = string(value.([]byte))
+			for index, _field := range _fields {
+				valueType := types.TypeToStr(_field.Column.Tp, _field.Column.Charset)
+				switch valueType {
+				case "varchar":
+					row[fields[index]] = _row.GetString(index)
+				case "int":
+					row[fields[index]] = _row.GetInt64(index)
 				default:
-					row[fields[index]] = value
 				}
 			}
 			data = append(data, row)
@@ -91,10 +92,9 @@ func getPostParams(r *http.Request) url.Values {
 		decoder := json.NewDecoder(r.Body)
 		decoder.Decode(&params)
 		for k, v := range params {
-			fmt.Println(reflect.ValueOf(v).Kind().String())
 			switch v.(type) {
-			case string:
-				result.Set(k, v.(string))
+			case []byte:
+				result.Set(k, string(v.([]byte)))
 			default:
 				result.Set(k, fmt.Sprintf("%v", v))
 			}
